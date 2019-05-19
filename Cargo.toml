@@ -1,0 +1,9 @@
+[package]
+name = "lurl"
+version = "0.1.0"
+authors = ["winsider <lars@tungen.net>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.0"
+curl = "0.4.21"
