@@ -1,7 +1,6 @@
 use clap::{App, Arg};
-use curl::easy::Easy;
-use std::fs::File;
-use std::io::{stdout, Write};
+use std::fs;
+use scraper::{Html,Selector};
 
 fn main() {
 	let matches = App::new("LURL - Load URL tool")
@@ -13,6 +12,7 @@ fn main() {
 				.short("u")
 				.long("url")
 				.takes_value(true)
+				.required(true)
 				.help("An url to load"),
 		)
 		.arg(
@@ -22,39 +22,38 @@ fn main() {
 				.takes_value(true)
 				.help("Output file"),
 		)
+		.arg(
+			Arg::with_name("feeds")
+				.short("f")
+				.long("feeds")
+				.takes_value(false)
+				.help("List feeds in HTML document (rss)"),
+		)
 		.get_matches();
 
+	// Download content
 	let url = matches.value_of("url");
-	if url.is_none() {
-		println!("No url given.");
-		return;
-	}
 	let url = url.unwrap();
+	let body = reqwest::get(url).unwrap().text().unwrap();
 
-	// Write the contents of rust-lang.org to stdout
+	if matches.value_of("feeds").is_some() {
+		// Parse content
+		let document = Html::parse_document(&body);
+		let selector = Selector::parse("html head link[type='application/rss+xml']").unwrap();
+		for element in document.select(&selector) {
+			println!("found: {}", element.value().name());
+		}
+	}
+	// Write output
 	let outfile = matches.value_of("out");
-	let mut easy = Easy::new();
-	easy.url(&url).unwrap();
 	if outfile.is_some() {
+		// Write contents to file
 		println!("The url given: {}", url);
 		let outfile: String = outfile.unwrap().to_string();
-		easy
-			.write_function(move |data| {
-				let f = File::create(&outfile).unwrap();
-				return write_file(f, data);
-			})
-			.unwrap();
+		fs::write(outfile, body).unwrap();
 	} else {
-		easy.write_function(write_stdout).unwrap();
+		// Write the contents to stdout
+		println!("{}", body);		
 	}
-	easy.perform().unwrap();
-	println!();
 }
 
-fn write_stdout(data: &[u8]) -> Result<usize, curl::easy::WriteError> {
-	Ok(stdout().write(data).unwrap())
-}
-
-fn write_file(mut outfile: File, data: &[u8]) -> Result<usize, curl::easy::WriteError> {
-	Ok(outfile.write(data).unwrap())
-}
