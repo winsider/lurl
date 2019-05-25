@@ -35,25 +35,30 @@ fn main() {
 	let url = matches.value_of("url");
 	let url = url.unwrap();
 	let body = reqwest::get(url).unwrap().text().unwrap();
-
-	if matches.value_of("feeds").is_some() {
+	
+	if matches.is_present("feeds") {
 		// Parse content
 		let document = Html::parse_document(&body);
-		let selector = Selector::parse("html head link[type='application/rss+xml']").unwrap();
-		for element in document.select(&selector) {
-			println!("found: {}", element.value().name());
+		let types : [&str; 2] = ["application/rss+xml", "application/atom+xml"];
+		for typ in &types {
+			let selector_expr = format!(r#"html head link[type="{}"]"#, typ);
+			let selector = Selector::parse(&selector_expr).unwrap();
+			for element in document.select(&selector) {
+				println!("{}", element.value().attr("href").unwrap());			
+			}
 		}
-	}
-	// Write output
-	let outfile = matches.value_of("out");
-	if outfile.is_some() {
-		// Write contents to file
-		println!("The url given: {}", url);
-		let outfile: String = outfile.unwrap().to_string();
-		fs::write(outfile, body).unwrap();
 	} else {
-		// Write the contents to stdout
-		println!("{}", body);		
+		// Write output
+		let outfile = matches.value_of("out");
+		if outfile.is_some() {
+			// Write contents to file
+			println!("The url given: {}", url);
+			let outfile: String = outfile.unwrap().to_string();
+			fs::write(outfile, body).unwrap();
+		} else {
+			// Write the contents to stdout
+			println!("{}", body);		
+		}
 	}
 }
 
